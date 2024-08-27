@@ -59,10 +59,27 @@ struct CPU{
         }
 
 
+
+
+
         // opcodes
         static const u8 LDA_IMM = 0xA9;
         static const u8 LDA_ZP = 0xA5;
         static const u8 LDA_ZX = 0xB5;
+        static const u8 LDA_ABS = 0xAD;
+        static const u8 LDA_ABX = 0xBD;
+        static const u8 LDA_ABY = 0xB9;
+
+
+
+
+        // flag set functions 
+        void LDA_flags(){
+                Z = (A == 0);
+                N = (A & 0b10000000) > 0; 
+        }
+
+
         // Execute funciton
 
         u8 fetchbyte(int& cycles, Memory& mem){
@@ -72,7 +89,7 @@ struct CPU{
                 return data;
         } 
 
-        u8 Readbyte(int& cycles, Memory& mem, u8 addr){
+        u8 Readbyte(int& cycles, Memory& mem, u16 addr){
                 u8 data = mem.read(addr);
                 cycles--;
                 return data;
@@ -86,8 +103,7 @@ struct CPU{
                                 case LDA_IMM:{
                                                      u8 value = fetchbyte(cycles,mem);
                                                      A = value;
-                                                     Z = (A == 0);
-                                                     N = (A & 0b10000000) > 0;
+                                                     LDA_flags();
                                                      std::cout<<"Value of Accumalator = "<<(unsigned)A<<" in LDA_IMM opcode\n";
                                              }break;
                                 case LDA_ZP:{
@@ -103,10 +119,41 @@ struct CPU{
                                                     some_addr = some_addr + X;
                                                     cycles--;
                                                     A = Readbyte(cycles, mem, some_addr);
-                                                    Z = (A==0);
-                                                    N = (A & 0b10000000);
+                                                    LDA_flags();
                                                     std::cout<<"A = "<<(unsigned)A<<" in LDA_ZX\n";
                                             }
+                                case LDA_ABS:{
+                                                     u8 some_addr = fetchbyte(cycles, mem);
+                                                     u16 tempaddr;
+                                                     tempaddr = some_addr << 8;
+                                                     u8 addr = fetchbyte(cycles, mem);
+                                                     tempaddr = tempaddr | addr;
+                                                     std::cout<<"tampaddr = 0x"<<std::hex<<(unsigned)tempaddr<<"\n";
+                                                     A = Readbyte(cycles, mem, tempaddr);
+                                                     LDA_flags();
+                                                     std::cout<<"A = "<<(unsigned)A<<" in LDA_ABS\n";
+                                             }break;
+                                case LDA_ABX:{
+                                                     u8 some_addr = fetchbyte(cycles, mem);
+                                                     u16 tempaddr;
+                                                     tempaddr = some_addr << 8;
+                                                     u8 addr = fetchbyte(cycles, mem);
+                                                     tempaddr = tempaddr | addr;
+                                                     A = Readbyte(cycles, mem, tempaddr+X);
+                                                     LDA_flags();
+                                                     std::cout<<"A = "<<(unsigned)A<<" in LDA_ABX\n";
+
+                                             }break;
+                                case LDA_ABY:{
+                                                     u8 some_addr = fetchbyte(cycles, mem);
+                                                     u16 tempaddr;
+                                                     tempaddr= some_addr << 8;
+                                                     u8 addr = fetchbyte(cycles,mem);
+                                                     tempaddr = tempaddr | addr;
+                                                     A = Readbyte(cycles, mem, tempaddr+Y);
+                                                     LDA_flags();
+                                                     std::cout<<"A = "<<(unsigned)A<<" in LDA_ABY\n";
+                                             }break;
                                 default:
                                 {
                                         std::cout<<"Nothing to perform :)\n";
@@ -122,15 +169,14 @@ int main(){
         CPU cpu;
         cpu.initialize(ram);
         u16 currpc = cpu.PC;
-        ram.mem_space[0x0000] = 0x11;
-        ram.mem_space[0x0003] = 0x01;
-        ram.mem_space[currpc] = cpu.LDA_IMM;
-        ram.mem_space[++currpc] = 0x02;
-        ram.mem_space[++currpc] = cpu.LDA_IMM;
-        ram.mem_space[++currpc] = 0x09;
-        ram.mem_space[++currpc] = cpu.LDA_ZP;
-        ram.mem_space[++currpc] = 0x00;
-        ram.mem_space[++currpc] = cpu.LDA_ZX;
+        ram.mem_space[currpc] = cpu.LDA_ABS;
+        ram.mem_space[++currpc] = 0xff;
+        ram.mem_space[++currpc] = 0xba;
+        ram.mem_space[0xffba] = 0x12;
+        ram.mem_space[++currpc] = cpu.LDA_ABY;
+        ram.mem_space[++currpc] = 0xfa;
+        ram.mem_space[++currpc] = 0xbb;
+        ram.mem_space[0xfabb] = 0x22;
         cpu.exec(10, ram);
         
 
